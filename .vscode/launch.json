@@ -1,0 +1,33 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "mpiexec-gdb (mpic++) - Build and launch project",
+        "type": "cppdbg",
+        "request": "launch",
+        "program": "/usr/local/bin/mpiexec",
+        "args":["-np", "4", "${fileDirname}/Program.exe", "-np", "4", "-pw", "abc", "-characterSet", "abc", "-logLevel", "Info"],
+        "cwd": "${workspaceFolder}",
+        "stopAtEntry": false,
+        "environment": [],
+        "externalConsole": false,
+        "preLaunchTask": "mpic++ build all cpp files",
+      },
+      {
+        "name": "gdb (mpic++) - Build and Debug project",
+        "type": "cppdbg",
+        "request": "launch",
+        "program": "${fileDirname}/Program.exe",
+        "args":["-np", "4", "-pw", "abc", "-characterSet", "abc", "-logLevel", "Info"],
+        "cwd": "${workspaceFolder}",
+        "stopAtEntry": false,
+        "environment": [],
+        "externalConsole": false,
+        "linux": {
+          "MIMode": "gdb",
+          "miDebuggerPath": "/usr/bin/gdb"
+        },
+        "preLaunchTask": "mpic++ build all cpp files",
+      }
+    ]
+}
