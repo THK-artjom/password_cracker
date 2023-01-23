@@ -5,19 +5,15 @@
 #include <map>
 #include <fstream>
 #include <iomanip>
-//#include <mutex>
 
 using namespace std;
 
 class ConsoleLogger
 {
     private:
-        //mutex _fileWriteMutex;
         static ConsoleLogger* _instance;
         int _processId;
         LogLevels::LogLevel _minLogLevel;
-        //map<int, ofstream*> _fileStreams;
-        //map<int, mutex> _streamMutex;
         string GetTime();
         LogLevels _logLevels;
         void WriteLog(char* formatedStr, LogLevels::LogLevel logLevel);

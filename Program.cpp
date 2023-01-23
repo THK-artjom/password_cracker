@@ -59,6 +59,13 @@ bool IsPasswordOnlyOneLetter(int charactersCount, string characters, PasswordChe
     return false;
 }
 
+
+int StopExecution()
+{
+    MPI_Finalize();
+    return 0;
+}
+
 int main(int argumentsCnt, char** argumentsPtr)
 {    
     string passwordToFind ="hak"; //only if no argument is provided
@@ -98,7 +105,6 @@ int main(int argumentsCnt, char** argumentsPtr)
     MPI_Init(&argumentsCnt,&argumentsPtr);    // Start des MPI-Systems
     MPI_Comm_size(MPI_COMM_WORLD,&numprocs);  // Kommunikationsraum
     MPI_Comm_rank(MPI_COMM_WORLD,&myid);      // Id ermitteln
-    MPI_Request waitForPasswordRequest; //sync variable //TODO: add arrays for each process
     MPI_Request stopRequest; //sync variable
     MPI_Status stat; //sync variable
 
@@ -123,6 +129,8 @@ int main(int argumentsCnt, char** argumentsPtr)
         char receivedPassword[MAX_PASSWORD_LENGTH + 1] = "";
         receivedPassword[MAX_PASSWORD_LENGTH] = '\0';
 
+        MPI_Request waitForPasswordRequest; //sync variable //TODO: add arrays for each process
+    
         for (int processId = 1; processId < numprocs; processId++)
         {
             if(processId > charactersCount)
@@ -150,7 +158,7 @@ int main(int argumentsCnt, char** argumentsPtr)
             sleep(100);
         }
 
-        logger->Info("Received password: %s", receivedPassword); // Ausgabe empfangene Nachricht im Kommunikationsraum MPI_COMM_WORLD              
+        logger->Info("Received password: [%s]", receivedPassword); // Ausgabe empfangene Nachricht im Kommunikationsraum MPI_COMM_WORLD              
         MPI_Wait(&waitForPasswordRequest, MPI_STATUS_IGNORE); //wait for one process to answer the request
 
         for (int processId = 1; processId < numprocs; processId++)
@@ -199,7 +207,7 @@ int main(int argumentsCnt, char** argumentsPtr)
                     if(abort == 1)
                     {   
                         logger->Debug("Aborted: %s!", abort == 1 ? "true" : "false");
-                        return 0;
+                        return StopExecution();
                     }
 
                     string charStr(1, characters[charId]);
@@ -209,9 +217,10 @@ int main(int argumentsCnt, char** argumentsPtr)
                     bool isValid = passwordChecker.IsPasswordValid(newPass.c_str());
                     if(isValid)
                     {
+                        MPI_Request waitForPasswordRequest; //sync variable //TODO: add arrays for each process 
                         logger->Info("Password cracked! Password is: [%s]", newPass.c_str()); 
                         MPI_Isend(newPass.c_str(), MAX_PASSWORD_LENGTH, MPI_CHAR, MASTER_PROCESS_ID, PASSWORDFOUND_TAG, MPI_COMM_WORLD, &waitForPasswordRequest);
-                        return 0;
+                        return StopExecution();
                     }
                 }
             }
@@ -223,7 +232,5 @@ int main(int argumentsCnt, char** argumentsPtr)
     }
 
     logger->Info("Finished password search.");
-    delete(logger);
-    MPI_Finalize();
-    return 0;
+    return StopExecution();
 }

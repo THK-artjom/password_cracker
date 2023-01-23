@@ -97,37 +97,19 @@ void ConsoleLogger::WriteLog(char* formatedStr, LogLevels::LogLevel logLevel)
     string logLevelStr = _logLevels.LogLevelToString(logLevel);
     string time = GetTime();
 
-    ofstream* myfile;
     string fileName = GetFileNameForLogger(_processId);
-    //if(_fileStreams.count(_processId) <= 0)
-    //{
-        ofstream newFileStream;
-        //_fileStreams[_processId] = &newFileStream;
-        myfile = &newFileStream;
-        newFileStream.open(fileName, std::ios::out | std::ios::app);
-    //}
-    //else
-    //{
-      //  myfile = _fileStreams[_processId];
-      //  if(myfile->is_open() == false)
-      //      myfile->open(fileName, std::ios::out | std::ios::app);
-    //}
+    ofstream myfile;
+    myfile.open(fileName, std::ios::out | std::ios::app);
 
     cout << "[" << time << "]:\t [" << logLevelStr.c_str() << "]\t [" << _processId << "]:\t" << formatedStr << '\n';
-    *(myfile) << "[" << time << "]:\t [" << logLevelStr.c_str() << "]\t [" << _processId << "]:\t" << formatedStr << '\n';
+    myfile << "[" << time << "]:\t [" << logLevelStr.c_str() << "]\t [" << _processId << "]:\t" << formatedStr << '\n';
 
-    myfile->close();
+    myfile.close();
 }
 
 ConsoleLogger::~ConsoleLogger()
 {
-    /*for (const auto& stream: _fileStreams) 
-    {
-        if(stream.second->is_open() == true)
-            stream.second->close();  //TODO: error on cleanup maybe because stream still open?
-    }
-    */
-    //_fileStreams.clear();
+    _instance = nullptr;
 }
 
 void ConsoleLogger::SetLogLevel(LogLevels::LogLevel logLevel)
