@@ -101,8 +101,13 @@ void ConsoleLogger::WriteLog(char* formatedStr, LogLevels::LogLevel logLevel)
     ofstream myfile;
     myfile.open(fileName, std::ios::out | std::ios::app);
 
-    cout << "[" << time << "]:\t [" << logLevelStr.c_str() << "]\t [" << _processId << "]:\t" << formatedStr << '\n';
-    myfile << "[" << time << "]:\t [" << logLevelStr.c_str() << "]\t [" << _processId << "]:\t" << formatedStr << '\n';
+    int charsToFill = 7 - logLevelStr.length();
+    if(charsToFill <= 0)
+        charsToFill = 1;
+    string emptySpace(charsToFill, ' '); 
+
+      cout << "[" << time << "]:\t [" << logLevelStr.c_str() << "]" << emptySpace.c_str() << "[" << _processId << "]:\t" << formatedStr << '\n';
+    myfile << "[" << time << "]:\t [" << logLevelStr.c_str() << "]" << emptySpace.c_str() << "[" << _processId << "]:\t" << formatedStr << '\n';
 
     myfile.close();
 }
