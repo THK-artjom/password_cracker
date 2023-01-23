@@ -12,6 +12,6 @@ bool PasswordChecker::IsPasswordValid(string password)
 {
     _logger->Debug("Checking Password: %s", password.c_str());
     bool arePasswdEqual = _password.compare(password) == 0;
-    _logger->Info("Password: %s is %s", password.c_str(), arePasswdEqual == true ? "true" : "false");
+    _logger->Debug("Password: %s is %s", password.c_str(), arePasswdEqual == true ? "true" : "false");
     return arePasswdEqual;
 }

@@ -119,10 +119,7 @@ int main(int argumentsCnt, char** argumentsPtr)
         
 
     if(myid == MASTER_PROCESS_ID)
-    {   
-        if(IsPasswordOnlyOneLetter(charactersCount, characters, passwordChecker, *logger))
-            return 0;
-        
+    { 
         logger->Debug("We have %d processors for cracking sending start characters to each one", numprocs - 1); 
         
         char receivedPassword[MAX_PASSWORD_LENGTH + 1] = "";
@@ -150,8 +147,13 @@ int main(int argumentsCnt, char** argumentsPtr)
 
         int requestsCount = sizeof(waitForPasswordRequests)/sizeof(waitForPasswordRequests[0]);
         int finishedWorkerId = 0;
-        logger->Debug("Started waiting for %d answers. Currently the received password is [%s]", requestsCount, receivedPassword);
+        logger->Info("Started waiting for %d answers. Currently the received password is [%s]", requestsCount, receivedPassword);
         
+        if(IsPasswordOnlyOneLetter(charactersCount, characters, passwordChecker, *logger))
+        {   
+            return StopExecution();
+        }
+
         MPI_Waitany(requestsCount, waitForPasswordRequests, &finishedWorkerId, MPI_STATUS_IGNORE); //wait for one process to answer the request
         finishedWorkerId++; //worker id starts from 1 so increment is needed
         logger->Info("Received password [%s] from process: %d", receivedPassword, finishedWorkerId);
@@ -188,7 +190,7 @@ int main(int argumentsCnt, char** argumentsPtr)
         MemoryObserver memoryObserver;
         for (size_t length = 2; length <= MAX_PASSWORD_LENGTH;)
         {
-            logger->Info("Started checking passwords with length %d", length + 1);
+            logger->Debug("Started checking passwords with length %d", length + 1);
             clock_t startClick = clock();
 
             string currentPass;
