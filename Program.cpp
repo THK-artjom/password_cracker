@@ -76,7 +76,7 @@ int main(int argumentsCnt, char** argumentsPtr)
 
     int numprocs;
     // read arguments
-    for (size_t i = 1; i < argumentsCnt -1; i+=2)
+    for (size_t i = 1; i < argumentsCnt - 1; i+=2)
     {
         string type(argumentsPtr[i]);
         string value(argumentsPtr[i+1]);
@@ -101,19 +101,18 @@ int main(int argumentsCnt, char** argumentsPtr)
         }
     }
     
-    const int charactersCount = characters.length();
     int myid;
     MPI_Init(&argumentsCnt,&argumentsPtr);    // Start des MPI-Systems
     MPI_Comm_size(MPI_COMM_WORLD,&numprocs);  // Kommunikationsraum
     MPI_Comm_rank(MPI_COMM_WORLD,&myid);      // Id ermitteln
-    MPI_Status stat; //sync variable
 
     logger = ConsoleLogger::Instance(logLevel, myid);
     PasswordChecker passwordChecker(passwordToFind, logger);
 
     if(IsPasswordSetupValid(passwordToFind, characters, MAX_PASSWORD_LENGTH, logger) == false)
         return 1;
-
+    
+    const int charactersCount = characters.length();
     int splitRangeLength = 1;
     if(numprocs > 1)
         splitRangeLength = ceil(1.00 * charactersCount / (numprocs - 1));
@@ -129,7 +128,7 @@ int main(int argumentsCnt, char** argumentsPtr)
         char receivedPassword[MAX_PASSWORD_LENGTH + 1] = "";
         receivedPassword[MAX_PASSWORD_LENGTH] = '\0';
 
-        map<int, MPI_Request> waitForPasswordRequests; //sync variable //TODO: add arrays for each process
+        MPI_Request waitForPasswordRequests[numprocs - 1];
     
         for (int processId = 1; processId < numprocs; processId++)
         {
@@ -146,42 +145,23 @@ int main(int argumentsCnt, char** argumentsPtr)
             MPI_Request sendPasswordRangeRequest;
             MPI_Isend(c_startcharacters, splitRangeLength, MPI_CHAR, processId, PASSWORDRANGE_TAG, MPI_COMM_WORLD, &sendPasswordRangeRequest);  // Senden eines Puffers mit Zeichenkette an Prozess i 
             
-            MPI_Request waitForPasswordRequest;
-            waitForPasswordRequests[processId] = waitForPasswordRequest;
-            MPI_Irecv(receivedPassword, MAX_PASSWORD_LENGTH, MPI_CHAR, processId, PASSWORDFOUND_TAG, MPI_COMM_WORLD, &waitForPasswordRequest); // Empfang der Statusmeldung des Prozess i 
+            MPI_Irecv(receivedPassword, MAX_PASSWORD_LENGTH + 1, MPI_CHAR, processId, PASSWORDFOUND_TAG, MPI_COMM_WORLD, &waitForPasswordRequests[processId - 1]); // Empfang der Statusmeldung des Prozess i 
         }
 
-        logger->Debug("Started waiting for answers. Currently the received password is [%s]", receivedPassword);
-            
-        int wasPasswordReceived = false;
-        while(wasPasswordReceived == false)
-        {
-            for (const auto& requestMapping : waitForPasswordRequests) 
-            {
-                logger->Debug("Waiting for answers from process %d. Currently the received password is [%s]", requestMapping.first, receivedPassword);
-            
-                MPI_Request waitForPasswordRequest = requestMapping.second;
-                MPI_Test(&waitForPasswordRequest, &wasPasswordReceived, MPI_STATUS_IGNORE); //wait for one process to answer the request
-                
-                if(wasPasswordReceived == true)
-                {   
-                    logger->Info("Received the answers from process %d. The received password is [%s]", requestMapping.first, receivedPassword);
-                    break;
-                }
-            }
-
-            if(wasPasswordReceived == true)
-                break;
-            
-            sleep(1);
-        }
-
-        logger->Info("Received password: [%s]", receivedPassword); // Ausgabe empfangene Nachricht im Kommunikationsraum MPI_COMM_WORLD              
-        //MPI_Wait(&waitForPasswordRequest, MPI_STATUS_IGNORE); //wait for one process to answer the request
-
+        int requestsCount = sizeof(waitForPasswordRequests)/sizeof(waitForPasswordRequests[0]);
+        int finishedWorkerId = 0;
+        logger->Debug("Started waiting for %d answers. Currently the received password is [%s]", requestsCount, receivedPassword);
+        
+        MPI_Waitany(requestsCount, waitForPasswordRequests, &finishedWorkerId, MPI_STATUS_IGNORE); //wait for one process to answer the request
+        finishedWorkerId++; //worker id starts from 1 so increment is needed
+        logger->Info("Received password [%s] from process: %d", receivedPassword, finishedWorkerId);
+        
         for (int processId = 1; processId < numprocs; processId++)
         {
-            logger->Debug("Sending abort to process %d:", processId);
+            if(finishedWorkerId == processId)
+                continue; //skip already finished thread
+            
+            logger->Info("Sending abort to process %d:", processId);
             int abort = 1;
             MPI_Send(&abort, 1, MPI_INT, processId, ABORT_PROCESS_TAG, MPI_COMM_WORLD);
         }
@@ -191,7 +171,7 @@ int main(int argumentsCnt, char** argumentsPtr)
         char passwordRange[splitRangeLength + 1];
         passwordRange[splitRangeLength] = '\0';
 
-        MPI_Recv(passwordRange, splitRangeLength, MPI_CHAR, MASTER_PROCESS_ID, PASSWORDRANGE_TAG, MPI_COMM_WORLD, &stat);
+        MPI_Recv(passwordRange, splitRangeLength, MPI_CHAR, MASTER_PROCESS_ID, PASSWORDRANGE_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         int abort = false;
         MPI_Request stopRequest;
         MPI_Irecv(&abort, 1, MPI_INT, MASTER_PROCESS_ID, ABORT_PROCESS_TAG, MPI_COMM_WORLD, &stopRequest);
@@ -237,8 +217,9 @@ int main(int argumentsCnt, char** argumentsPtr)
                     bool isValid = passwordChecker.IsPasswordValid(newPass.c_str());
                     if(isValid)
                     {
-                        logger->Info("Password cracked! Password is: [%s]", newPass.c_str()); 
-                        MPI_Send(newPass.c_str(), MAX_PASSWORD_LENGTH, MPI_CHAR, MASTER_PROCESS_ID, PASSWORDFOUND_TAG, MPI_COMM_WORLD);
+                        const char* crackedPassword = newPass.c_str(); 
+                        logger->Info("Password cracked! Password is: [%s]", crackedPassword); 
+                        MPI_Send(crackedPassword, strlen(crackedPassword), MPI_CHAR, MASTER_PROCESS_ID, PASSWORDFOUND_TAG, MPI_COMM_WORLD);
                         return StopExecution();
                     }
                 }
