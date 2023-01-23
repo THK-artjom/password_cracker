@@ -10,8 +10,8 @@ class PasswordChecker
 {
     private:
         string _password;
-        ConsoleLogger _logger;
+        ConsoleLogger* _logger;
     public:
-        PasswordChecker(string password, ConsoleLogger logger);
+        PasswordChecker(string password, ConsoleLogger* logger);
         bool IsPasswordValid(string password);
 };

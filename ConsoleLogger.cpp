@@ -33,7 +33,6 @@ void ConsoleLogger::Info(const char* format, ...)
     vsnprintf(formatedInfo, 255 - 1, format, vl);
     va_end(vl);
 
-
     WriteLog(formatedInfo, LogLevels::LogLevel::Info);
 }
 
@@ -59,7 +58,6 @@ void ConsoleLogger::Error(const char* format, ...)
     WriteLog(formatedInfo, LogLevels::LogLevel::Error);
 }
 
-
 string ConsoleLogger::GetTime()
 {
     // get current time
@@ -83,6 +81,13 @@ string ConsoleLogger::GetTime()
     return oss.str();
 }
 
+string GetFileNameForLogger(int processId)
+{
+    char fileNameFormat[] = "Process_%d.log";
+    char fileName[strlen(fileNameFormat) + 10] = { };
+    sprintf(fileName, fileNameFormat, processId);
+    return fileName;
+}
 
 void ConsoleLogger::WriteLog(char* formatedStr, LogLevels::LogLevel logLevel)
 {
@@ -93,32 +98,57 @@ void ConsoleLogger::WriteLog(char* formatedStr, LogLevels::LogLevel logLevel)
     string time = GetTime();
 
     ofstream* myfile;
-    if(_fileStreams.count(_processId) <= 0)
-    {
+    string fileName = GetFileNameForLogger(_processId);
+    //if(_fileStreams.count(_processId) <= 0)
+    //{
         ofstream newFileStream;
-        char fileNameFormat[] = "Process_%d.log";
-        char fileName[strlen(fileNameFormat) + 10] = { };
-        sprintf(fileName, fileNameFormat, _processId);
-        newFileStream.open(fileName);
-
-        _fileStreams[_processId] = &newFileStream;
+        //_fileStreams[_processId] = &newFileStream;
         myfile = &newFileStream;
-    }
-    else
-    {
-        myfile = _fileStreams[_processId];
-    }
+        newFileStream.open(fileName, std::ios::out | std::ios::app);
+    //}
+    //else
+    //{
+      //  myfile = _fileStreams[_processId];
+      //  if(myfile->is_open() == false)
+      //      myfile->open(fileName, std::ios::out | std::ios::app);
+    //}
 
     cout << "[" << time << "]:\t [" << logLevelStr.c_str() << "]\t [" << _processId << "]:\t" << formatedStr << '\n';
     *(myfile) << "[" << time << "]:\t [" << logLevelStr.c_str() << "]\t [" << _processId << "]:\t" << formatedStr << '\n';
+
+    myfile->close();
 }
 
 ConsoleLogger::~ConsoleLogger()
 {
-    for (const auto& stream: _fileStreams) 
+    /*for (const auto& stream: _fileStreams) 
     {
-        stream.second->close();
+        if(stream.second->is_open() == true)
+            stream.second->close();  //TODO: error on cleanup maybe because stream still open?
     }
+    */
+    //_fileStreams.clear();
+}
 
-    _fileStreams.clear();
+void ConsoleLogger::SetLogLevel(LogLevels::LogLevel logLevel)
+{
+    _minLogLevel = logLevel;
+}
+
+void ConsoleLogger::SetProcessId(int processId)
+{
+    _processId = processId;
+}
+
+ConsoleLogger* ConsoleLogger::_instance = nullptr;
+
+ConsoleLogger* ConsoleLogger::Instance(LogLevels::LogLevel minLogLevel, int processId)
+{
+    if(ConsoleLogger::_instance == nullptr)
+        ConsoleLogger::_instance = new ConsoleLogger(minLogLevel, processId);
+    
+    ConsoleLogger::_instance->SetLogLevel(minLogLevel);
+    ConsoleLogger::_instance->SetProcessId(processId);
+
+    return ConsoleLogger::_instance;
 }
