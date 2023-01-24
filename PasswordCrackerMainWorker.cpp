@@ -31,18 +31,23 @@ void PasswordCrackerMainWorker::StartCracking(int splitRangeLength)
 
     for (int processId = 1; processId < _numProcs; processId++)
     {
-        if(processId > _charactersCount)
-        {   
-            _logger.Warning("There are more processors available than splitting possible.");
+        int startId = (processId - 1) * splitRangeLength;
+        if(startId >= _charactersCount)
+        {
+            _logger.Warning("Too many cores available. Can not select characters start range from pos %d with length %d from character set [%s} having count %d.", startId, splitRangeLength, _characters.c_str(), _charactersCount);
             break;
         }
 
-        int startId = (processId - 1) * splitRangeLength;
-        string startCharacters = _characters.substr(startId, splitRangeLength);
+        string startCharacters;
+        if(startId + splitRangeLength > _charactersCount)
+            startCharacters = _characters.substr(startId, _charactersCount - startId);
+        else
+            startCharacters = _characters.substr(startId, splitRangeLength);
+    
         const char *c_startcharacters = startCharacters.c_str();
         
         MPI_Request sendPasswordRangeRequest;
-        MPI_Isend(c_startcharacters, splitRangeLength, MPI_CHAR, processId, PASSWORDRANGE_TAG, MPI_COMM_WORLD, &sendPasswordRangeRequest);  // Senden eines Puffers mit Zeichenkette an Prozess i 
+        MPI_Isend(c_startcharacters, startCharacters.length(), MPI_CHAR, processId, PASSWORDRANGE_TAG, MPI_COMM_WORLD, &sendPasswordRangeRequest);  // Senden eines Puffers mit Zeichenkette an Prozess i 
         
         MPI_Irecv(receivedPassword, _maxPasswordLength + 1, MPI_CHAR, processId, PASSWORDFOUND_TAG, MPI_COMM_WORLD, &waitForPasswordRequests[processId - 1]); // Empfang der Statusmeldung des Prozess i 
     }
@@ -52,9 +57,7 @@ void PasswordCrackerMainWorker::StartCracking(int splitRangeLength)
     _logger.Info("Started waiting for %d answers. Currently the received password is [%s]", requestsCount, receivedPassword);
     
     if(IsPasswordOnlyOneLetter())
-    {   
         return;
-    }
 
     MPI_Waitany(requestsCount, waitForPasswordRequests, &finishedWorkerId, MPI_STATUS_IGNORE); //wait for one process to answer the request
     finishedWorkerId++; //worker id starts from 1 so increment is needed
