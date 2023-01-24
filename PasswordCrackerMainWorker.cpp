@@ -1,6 +1,7 @@
 #include <mpi.h>
 #include "MPI_Definitions.h"
 #include "PasswordCrackerMainWorker.h"
+#include <math.h>
 
 bool PasswordCrackerMainWorker::IsPasswordOnlyOneLetter()
 {
@@ -27,9 +28,10 @@ void PasswordCrackerMainWorker::StartCracking(int splitRangeLength)
     char receivedPassword[_maxPasswordLength + 1] = "";
     receivedPassword[_maxPasswordLength] = '\0';
 
-    MPI_Request waitForPasswordRequests[_numProcs - 1];
+    int usableWorkerCount = ceil(1.00 * _charactersCount / splitRangeLength);
+    MPI_Request waitForPasswordRequests[usableWorkerCount];
 
-    for (int processId = 1; processId < _numProcs; processId++)
+    for (int processId = 1; processId < usableWorkerCount + 1; processId++)
     {
         int startId = (processId - 1) * splitRangeLength;
         if(startId >= _charactersCount)
