@@ -27,10 +27,10 @@ int GetPasswordsCount(int length, int previousCount, int charCount)
 
 void PasswordCrackerWorker::CrackPassword(int splitRangeLength)
 {
-    char passwordRange[splitRangeLength + 1];
+    char passwordRange[splitRangeLength + 1] = { '\0' };
     passwordRange[splitRangeLength] = '\0';
 
-    MPI_Recv(passwordRange, splitRangeLength, MPI_CHAR, MASTER_PROCESS_ID, PASSWORDRANGE_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    MPI_Recv(passwordRange, splitRangeLength, MPI_CHAR, MASTER_PROCESS_ID, PASSWORDRANGE_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE); //wait until start range is received
     int abort = false;
     MPI_Request stopRequest;
     MPI_Irecv(&abort, 1, MPI_INT, MASTER_PROCESS_ID, ABORT_PROCESS_TAG, MPI_COMM_WORLD, &stopRequest);
