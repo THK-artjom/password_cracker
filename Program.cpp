@@ -1,23 +1,22 @@
 #include <stdio.h>
-#include "PasswordChecker.h"
-#include "PasswordGenerator.h"
 #include <string>
 #include <string.h>
 #include <mpi.h>
 #include <math.h>
-#include <vector>
+//#include <vector>
 #include <bits/stdc++.h>
-#include "MemoryObserver.h"
-#include "ConsoleLogger.h"
 #include "time.h"
 #include <map>
 
+//#include "MemoryObserver.h"
+#include "ConsoleLogger.h"
+#include "MPI_Definitions.h"
+#include "PasswordChecker.h"
+//#include "PasswordGenerator.h"
+#include "PasswordCrackWorker.h"
+
 using namespace std;
 
-#define PASSWORDRANGE_TAG 0
-#define PASSWORDFOUND_TAG PASSWORDRANGE_TAG + 1
-#define ABORT_PROCESS_TAG PASSWORDFOUND_TAG + 1
-#define MASTER_PROCESS_ID 0
 #define MAX_PASSWORD_LENGTH 6
 
 bool IsPasswordSetupValid(string passwordToFind, string characters, int maxPasswordLength, ConsoleLogger* logger)
@@ -120,6 +119,7 @@ int main(int argumentsCnt, char** argumentsPtr)
 
     if(myid == MASTER_PROCESS_ID)
     { 
+        logger->Info("We have %d processors for cracking password [%s] having character set {%s} and max length %d", numprocs - 1, passwordToFind.c_str(), characters.c_str(), MAX_PASSWORD_LENGTH); 
         logger->Debug("We have %d processors for cracking sending start characters to each one", numprocs - 1); 
         
         char receivedPassword[MAX_PASSWORD_LENGTH + 1] = "";
@@ -170,67 +170,8 @@ int main(int argumentsCnt, char** argumentsPtr)
     }
     else // myid != 0 => Worker
     {
-        char passwordRange[splitRangeLength + 1];
-        passwordRange[splitRangeLength] = '\0';
-
-        MPI_Recv(passwordRange, splitRangeLength, MPI_CHAR, MASTER_PROCESS_ID, PASSWORDRANGE_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        int abort = false;
-        MPI_Request stopRequest;
-        MPI_Irecv(&abort, 1, MPI_INT, MASTER_PROCESS_ID, ABORT_PROCESS_TAG, MPI_COMM_WORLD, &stopRequest);
-        logger->Info("I am assigned to password range starting from: [%s]", passwordRange); // Puffer zusammenstellen
-
-        vector<string> passwords;
-
-        for(size_t charId = 0; charId < strlen(passwordRange); charId++) //init chars array for start
-        {
-            string charStr(1, passwordRange[charId]);
-            passwords.push_back(charStr);
-        }
-        
-        MemoryObserver memoryObserver;
-        for (size_t length = 2; length <= MAX_PASSWORD_LENGTH;)
-        {
-            logger->Debug("Started checking passwords with length %d", length + 1);
-            clock_t startClick = clock();
-
-            string currentPass;
-            int passwordsSize =  passwords.size();
-            size_t passwordId = 0;
-            for (; passwordId < passwordsSize; passwordId++)
-            {
-                currentPass = passwords[passwordId];   
-                length = currentPass.length() + 1;
-
-                logger->Debug("Remaining passwords in loop to be extended: %d", passwordsSize);
-
-                for(size_t charId = 0; charId < charactersCount; charId++)
-                {
-                    MPI_Test(&stopRequest, &abort, MPI_STATUS_IGNORE);
-                    if(abort == true)
-                    {   
-                        logger->Debug("Aborted: %s!", abort == 1 ? "true" : "false");
-                        return StopExecution();
-                    }
-
-                    string charStr(1, characters[charId]);
-                    string newPass = currentPass + charStr;
-                    passwords.push_back(newPass);
-                    logger->Debug("Checking password: [%s]. Memory Usage: %d kB", newPass.c_str(), memoryObserver.GetValue()); 
-                    bool isValid = passwordChecker.IsPasswordValid(newPass.c_str());
-                    if(isValid)
-                    {
-                        const char* crackedPassword = newPass.c_str(); 
-                        logger->Info("Password cracked! Password is: [%s]", crackedPassword); 
-                        MPI_Send(crackedPassword, strlen(crackedPassword), MPI_CHAR, MASTER_PROCESS_ID, PASSWORDFOUND_TAG, MPI_COMM_WORLD);
-                        return StopExecution();
-                    }
-                }
-            }
-            
-            clock_t finishClick = clock();
-            logger->Info("Finished checking passwords with length \t%d in \t%d ms", length + 1, (finishClick-startClick)/(CLOCKS_PER_SEC/1000));
-            passwords.erase(passwords.begin(), passwords.begin() + passwordId); //remove all already checked passwords to save storage space
-        }
+        PasswordCrackWorker passwordCracker(characters, MAX_PASSWORD_LENGTH, *logger, passwordChecker);
+        passwordCracker.CrackPassword(splitRangeLength);
     }
 
     logger->Info("Finished password search.");
