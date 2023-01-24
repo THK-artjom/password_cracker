@@ -12,6 +12,8 @@ class ConsoleLogger
 {
     private:
         static ConsoleLogger* _instance;
+        static string _fileName;
+        
         int _processId;
         LogLevels::LogLevel _minLogLevel;
         string GetTime();

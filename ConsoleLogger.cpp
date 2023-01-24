@@ -97,9 +97,8 @@ void ConsoleLogger::WriteLog(char* formatedStr, LogLevels::LogLevel logLevel)
     string logLevelStr = _logLevels.LogLevelToString(logLevel);
     string time = GetTime();
 
-    string fileName = GetFileNameForLogger(_processId);
     ofstream myfile;
-    myfile.open(fileName, std::ios::out | std::ios::app);
+    myfile.open(_fileName, std::ios::out | std::ios::app);
 
     int charsToFill = 7 - logLevelStr.length();
     if(charsToFill <= 0)
@@ -127,13 +126,28 @@ void ConsoleLogger::SetProcessId(int processId)
     _processId = processId;
 }
 
+void DeleteFile(string fileName)
+{
+    remove(fileName.c_str());
+}
+
 ConsoleLogger* ConsoleLogger::_instance = nullptr;
+string ConsoleLogger::_fileName = "Program_.log";
 
 ConsoleLogger* ConsoleLogger::Instance(LogLevels::LogLevel minLogLevel, int processId)
 {
+    ConsoleLogger::_fileName = GetFileNameForLogger(processId);
+
+    if(ConsoleLogger::_instance != nullptr 
+       && ConsoleLogger::_instance->_processId != processId)
+        DeleteFile(ConsoleLogger::_fileName);
+
     if(ConsoleLogger::_instance == nullptr)
+    {
+        DeleteFile(ConsoleLogger::_fileName);
         ConsoleLogger::_instance = new ConsoleLogger(minLogLevel, processId);
-    
+    }
+
     ConsoleLogger::_instance->SetLogLevel(minLogLevel);
     ConsoleLogger::_instance->SetProcessId(processId);
 

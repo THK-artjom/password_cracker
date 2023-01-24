@@ -19,6 +19,12 @@ PasswordCrackerWorker::PasswordCrackerWorker(string characters
 
 }
 
+//[c]:[a,b,c] => prev: 1 chars: 3, length: 2 => 3
+int GetPasswordsCount(int length, int previousCount, int charCount)
+{
+    return previousCount * charCount;
+}
+
 void PasswordCrackerWorker::CrackPassword(int splitRangeLength)
 {
     char passwordRange[splitRangeLength + 1];
@@ -39,7 +45,7 @@ void PasswordCrackerWorker::CrackPassword(int splitRangeLength)
     }
     
     MemoryObserver memoryObserver;
-    for (size_t length = 2; length <= _maxLength;)
+    for (size_t length = 1; length < _maxLength;)
     {
         _logger.Debug("Started checking passwords with length %d", length + 1);
         clock_t startClick = clock();
@@ -79,7 +85,8 @@ void PasswordCrackerWorker::CrackPassword(int splitRangeLength)
         }
         
         clock_t finishClick = clock();
-        _logger.Info("Finished checking passwords with length \t%d in \t%d ms", length + 1, (finishClick-startClick)/(CLOCKS_PER_SEC/1000));
+        int passwordsCount = GetPasswordsCount(length, passwordsSize, _charactersCount);
+        _logger.Info("Finished checking %d passwords with length \t%d in \t%d ms", passwordsCount, length, (finishClick-startClick)/(CLOCKS_PER_SEC/1000));
         passwords.erase(passwords.begin(), passwords.begin() + passwordId); //remove all already checked passwords to save storage space
     }
 }
