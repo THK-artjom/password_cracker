@@ -47,9 +47,8 @@ void PasswordCrackerMainWorker::StartCracking(int splitRangeLength)
         const char *c_startcharacters = startCharacters.c_str();
         
         MPI_Request sendPasswordRangeRequest;
-        MPI_Isend(c_startcharacters, startCharacters.length(), MPI_CHAR, processId, PASSWORDRANGE_TAG, MPI_COMM_WORLD, &sendPasswordRangeRequest);  // Senden eines Puffers mit Zeichenkette an Prozess i 
-        
-        MPI_Irecv(receivedPassword, _maxPasswordLength + 1, MPI_CHAR, processId, PASSWORDFOUND_TAG, MPI_COMM_WORLD, &waitForPasswordRequests[processId - 1]); // Empfang der Statusmeldung des Prozess i 
+        MPI_Isend(c_startcharacters, startCharacters.length(), MPI_CHAR, processId, PASSWORDRANGE_TAG, MPI_COMM_WORLD, &sendPasswordRangeRequest); //send range to worker without waiting
+        MPI_Irecv(receivedPassword, _maxPasswordLength + 1, MPI_CHAR, processId, PASSWORDFOUND_TAG, MPI_COMM_WORLD, &waitForPasswordRequests[processId - 1]); //init receive of password from each worker
     }
 
     int requestsCount = sizeof(waitForPasswordRequests)/sizeof(waitForPasswordRequests[0]);
