@@ -101,13 +101,14 @@ int main(int argumentsCnt, char** argumentsPtr)
     MPI_Comm_size(MPI_COMM_WORLD,&numprocs);  // Kommunikationsraum
     MPI_Comm_rank(MPI_COMM_WORLD,&myid);      // Id ermitteln
 
+    logger = ConsoleLogger::Instance(logLevel, myid);
+
     if(numprocs < 2)
     {
         logger->Error("The cracker needs at least two processes in config.");
         return AbortExecution();
     }
 
-    logger = ConsoleLogger::Instance(logLevel, myid);
     PasswordChecker passwordChecker(passwordToFind, logger);
 
     const int charactersCount = characters.length();
