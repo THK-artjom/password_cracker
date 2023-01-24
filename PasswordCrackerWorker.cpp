@@ -4,9 +4,9 @@
 
 #include "MPI_Definitions.h"
 #include "MemoryObserver.h"
-#include "PasswordCrackWorker.h"
+#include "PasswordCrackerWorker.h"
 
-PasswordCrackWorker::PasswordCrackWorker(string characters
+PasswordCrackerWorker::PasswordCrackerWorker(string characters
                                         , int maxLength
                                         , ConsoleLogger& logger
                                         , PasswordChecker& passwordChecker) : 
@@ -19,7 +19,7 @@ PasswordCrackWorker::PasswordCrackWorker(string characters
 
 }
 
-void PasswordCrackWorker::CrackPassword(int splitRangeLength)
+void PasswordCrackerWorker::CrackPassword(int splitRangeLength)
 {
     char passwordRange[splitRangeLength + 1];
     passwordRange[splitRangeLength] = '\0';
@@ -84,7 +84,7 @@ void PasswordCrackWorker::CrackPassword(int splitRangeLength)
     }
 }
 
-PasswordCrackWorker::~PasswordCrackWorker()
+PasswordCrackerWorker::~PasswordCrackerWorker()
 {
     
 }

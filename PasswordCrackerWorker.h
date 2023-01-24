@@ -4,7 +4,7 @@
 #include "PasswordChecker.h"
 #include "ConsoleLogger.h"
 
-class PasswordCrackWorker
+class PasswordCrackerWorker
 {
     private:
         ConsoleLogger& _logger;
@@ -13,11 +13,11 @@ class PasswordCrackWorker
         const int _charactersCount;
         const int _maxLength;
     public:
-        PasswordCrackWorker(string characters
+        PasswordCrackerWorker(string characters
                             , int maxLength
                             , ConsoleLogger& logger
                             , PasswordChecker& passwordChecker);
 
-        ~PasswordCrackWorker();
+        ~PasswordCrackerWorker();
         void CrackPassword(int splitRangeLength);
 };

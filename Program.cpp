@@ -8,12 +8,11 @@
 #include "time.h"
 #include <map>
 
-//#include "MemoryObserver.h"
 #include "ConsoleLogger.h"
 #include "MPI_Definitions.h"
 #include "PasswordChecker.h"
-//#include "PasswordGenerator.h"
-#include "PasswordCrackWorker.h"
+#include "PasswordCrackerWorker.h"
+#include "PasswordCrackerMainWorker.h"
 
 using namespace std;
 
@@ -40,25 +39,6 @@ bool IsPasswordSetupValid(string passwordToFind, string characters, int maxPassw
 
     return true;
 }
-
-bool IsPasswordOnlyOneLetter(int charactersCount, string characters, PasswordChecker passwordChecker, ConsoleLogger logger)
-{
-    logger.Debug("Master will check all one letter passwords"); 
-    for (size_t i = 0; i < charactersCount; i++)
-    {
-        string charStr(1, characters[i]);
-        logger.Debug("Checking password: %s", charStr.c_str()); 
-        bool isValid = passwordChecker.IsPasswordValid(charStr);
-        if(isValid)
-        {
-            logger.Info("found one letter password! %s", charStr.c_str()); 
-            return true;
-        }
-    }
-
-    return false;
-}
-
 
 int StopExecution()
 {
@@ -118,59 +98,14 @@ int main(int argumentsCnt, char** argumentsPtr)
         
 
     if(myid == MASTER_PROCESS_ID)
-    { 
+    {  
         logger->Info("We have %d processors for cracking password [%s] having character set {%s} and max length %d", numprocs - 1, passwordToFind.c_str(), characters.c_str(), MAX_PASSWORD_LENGTH); 
-        logger->Debug("We have %d processors for cracking sending start characters to each one", numprocs - 1); 
-        
-        char receivedPassword[MAX_PASSWORD_LENGTH + 1] = "";
-        receivedPassword[MAX_PASSWORD_LENGTH] = '\0';
-
-        MPI_Request waitForPasswordRequests[numprocs - 1];
-    
-        for (int processId = 1; processId < numprocs; processId++)
-        {
-            if(processId > charactersCount)
-            {   
-                logger->Warning("There are more processors available than splitting possible.");
-                break;
-            }
-
-            int startId = (processId - 1) * splitRangeLength;
-            string startCharacters = characters.substr(startId, splitRangeLength);
-            const char *c_startcharacters = startCharacters.c_str();
-            
-            MPI_Request sendPasswordRangeRequest;
-            MPI_Isend(c_startcharacters, splitRangeLength, MPI_CHAR, processId, PASSWORDRANGE_TAG, MPI_COMM_WORLD, &sendPasswordRangeRequest);  // Senden eines Puffers mit Zeichenkette an Prozess i 
-            
-            MPI_Irecv(receivedPassword, MAX_PASSWORD_LENGTH + 1, MPI_CHAR, processId, PASSWORDFOUND_TAG, MPI_COMM_WORLD, &waitForPasswordRequests[processId - 1]); // Empfang der Statusmeldung des Prozess i 
-        }
-
-        int requestsCount = sizeof(waitForPasswordRequests)/sizeof(waitForPasswordRequests[0]);
-        int finishedWorkerId = 0;
-        logger->Info("Started waiting for %d answers. Currently the received password is [%s]", requestsCount, receivedPassword);
-        
-        if(IsPasswordOnlyOneLetter(charactersCount, characters, passwordChecker, *logger))
-        {   
-            return StopExecution();
-        }
-
-        MPI_Waitany(requestsCount, waitForPasswordRequests, &finishedWorkerId, MPI_STATUS_IGNORE); //wait for one process to answer the request
-        finishedWorkerId++; //worker id starts from 1 so increment is needed
-        logger->Info("Received password [%s] from process: %d", receivedPassword, finishedWorkerId);
-        
-        for (int processId = 1; processId < numprocs; processId++)
-        {
-            if(finishedWorkerId == processId)
-                continue; //skip already finished thread
-            
-            logger->Info("Sending abort to process %d:", processId);
-            int abort = 1;
-            MPI_Send(&abort, 1, MPI_INT, processId, ABORT_PROCESS_TAG, MPI_COMM_WORLD);
-        }
+        PasswordCrackerMainWorker mainWorker(characters, MAX_PASSWORD_LENGTH, numprocs, *logger, passwordChecker);
+        mainWorker.StartCracking(splitRangeLength);
     }
     else // myid != 0 => Worker
     {
-        PasswordCrackWorker passwordCracker(characters, MAX_PASSWORD_LENGTH, *logger, passwordChecker);
+        PasswordCrackerWorker passwordCracker(characters, MAX_PASSWORD_LENGTH, *logger, passwordChecker);
         passwordCracker.CrackPassword(splitRangeLength);
     }
 
