@@ -31,6 +31,9 @@ void PasswordCrackerMainWorker::StartCracking(int splitRangeLength)
     int usableWorkerCount = ceil(1.00 * _charactersCount / splitRangeLength);
     MPI_Request waitForPasswordRequests[usableWorkerCount];
 
+    if(_numProcs -1 > usableWorkerCount)
+        _logger.Warning("Allgorithm can currently only use %d worker as of work seperation is done by character set length %d and the initial worker count can't be higher than %d.", usableWorkerCount, _charactersCount, _charactersCount); 
+    
     for (int processId = 1; processId < usableWorkerCount + 1; processId++)
     {
         int startId = (processId - 1) * splitRangeLength;
