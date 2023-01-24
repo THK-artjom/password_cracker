@@ -40,6 +40,12 @@ bool IsPasswordSetupValid(string passwordToFind, string characters, int maxPassw
     return true;
 }
 
+int AbortExecution()
+{
+    MPI_Abort(MPI_COMM_WORLD, MPI_ERR_ARG);
+    return 0;
+}
+
 int StopExecution()
 {
     MPI_Finalize();
@@ -53,11 +59,16 @@ int main(int argumentsCnt, char** argumentsPtr)
     LogLevels::LogLevel logLevel = LogLevels::LogLevel::Debug;
     ConsoleLogger* logger = ConsoleLogger::Instance(logLevel, -1);
 
-    int numprocs;
+    int numprocs = 0;
+    int maxPasswordLength = MAX_PASSWORD_LENGTH; //only if no argument is provided
     // read arguments
     for (size_t i = 1; i < argumentsCnt - 1; i+=2)
     {
         string type(argumentsPtr[i]);
+        if(argumentsCnt < i + 1)
+        {
+            
+        }
         string value(argumentsPtr[i+1]);
 
         if(type.compare("-pw") == 0)
@@ -67,45 +78,54 @@ int main(int argumentsCnt, char** argumentsPtr)
         else if(type.compare("-np") == 0)
         {
             int intVal = stoi(value);
-            if(intVal <= 1)
-            {    
-                logger->Error("The cracker needs at least two processes in config.");
-                numprocs = 2;
-            }
         }
         else if(type.compare("-logLevel") == 0)
         {
             LogLevels logLevels;
             logLevel = logLevels.LogLevelFromString(value);     
         }
+        else if(type.compare("-maxPasswordLength") == 0)
+        {
+            maxPasswordLength = stoi(value);
+            if(maxPasswordLength <= 0)
+                maxPasswordLength = 1;
+        }
+        else
+        {
+            logger->Error("Unknown Parameter %s. Available options: -pw, -maxPasswordLength, -logLevel, -characterSet, -np", type.c_str());
+            return 1;
+        }
     }
     
+    if(IsPasswordSetupValid(passwordToFind, characters, maxPasswordLength, logger) == false)
+        return 1;
+
     int myid;
     MPI_Init(&argumentsCnt,&argumentsPtr);    // Start des MPI-Systems
     MPI_Comm_size(MPI_COMM_WORLD,&numprocs);  // Kommunikationsraum
     MPI_Comm_rank(MPI_COMM_WORLD,&myid);      // Id ermitteln
 
+    if(numprocs < 2)
+    {
+        logger->Error("The cracker needs at least two processes in config.");
+        return AbortExecution();
+    }
+
     logger = ConsoleLogger::Instance(logLevel, myid);
     PasswordChecker passwordChecker(passwordToFind, logger);
 
-    if(IsPasswordSetupValid(passwordToFind, characters, MAX_PASSWORD_LENGTH, logger) == false)
-        return 1;
-    
     const int charactersCount = characters.length();
-    int splitRangeLength = 1;
-    if(numprocs > 1)
-        splitRangeLength = ceil(1.00 * charactersCount / (numprocs - 1));
-        
+    int splitRangeLength = ceil(1.00 * charactersCount / (numprocs - 1));
 
     if(myid == MASTER_PROCESS_ID)
     {  
-        logger->Info("We have %d processors for cracking password [%s] having character set {%s} and max length %d", numprocs - 1, passwordToFind.c_str(), characters.c_str(), MAX_PASSWORD_LENGTH); 
-        PasswordCrackerMainWorker mainWorker(characters, MAX_PASSWORD_LENGTH, numprocs, *logger, passwordChecker);
+        logger->Info("We have %d processors for cracking password [%s] having character set {%s} and max length %d", numprocs - 1, passwordToFind.c_str(), characters.c_str(), maxPasswordLength); 
+        PasswordCrackerMainWorker mainWorker(characters, maxPasswordLength, numprocs, *logger, passwordChecker);
         mainWorker.StartCracking(splitRangeLength);
     }
     else // myid != 0 => Worker
     {
-        PasswordCrackerWorker passwordCracker(characters, MAX_PASSWORD_LENGTH, *logger, passwordChecker);
+        PasswordCrackerWorker passwordCracker(characters, maxPasswordLength, *logger, passwordChecker);
         passwordCracker.CrackPassword(splitRangeLength);
     }
 
