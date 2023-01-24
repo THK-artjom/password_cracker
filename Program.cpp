@@ -3,10 +3,6 @@
 #include <string.h>
 #include <mpi.h>
 #include <math.h>
-//#include <vector>
-#include <bits/stdc++.h>
-#include "time.h"
-#include <map>
 
 #include "ConsoleLogger.h"
 #include "MPI_Definitions.h"
